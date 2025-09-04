@@ -129,45 +129,23 @@ pipeline {
             }
         }
         
-        stage('Integration Tests') {
-            steps {
-                echo 'Running integration tests...'
-                script {
-                    try {
-                        bat '''
-                            echo "Testing all application endpoints..."
-                            
-                            echo "Testing root endpoint..."
-                            powershell -Command "& {
-                                try {
-                                    $response = Invoke-RestMethod -Uri 'http://localhost:8080/' -TimeoutSec 10
-                                    Write-Host 'Root endpoint response:' $response
-                                } catch {
-                                    Write-Host 'Root endpoint failed:' $_.Exception.Message
-                                    exit 1
-                                }
-                            }"
-                            
-                            echo "Testing hello endpoint..."
-                            powershell -Command "& {
-                                try {
-                                    $response = Invoke-RestMethod -Uri 'http://localhost:8080/hello' -TimeoutSec 10
-                                    Write-Host 'Hello endpoint response:' $response
-                                } catch {
-                                    Write-Host 'Hello endpoint failed:' $_.Exception.Message
-                                    exit 1
-                                }
-                            }"
-                        '''
-                        echo "✅ All integration tests passed!"
-                    } catch (Exception e) {
-                        echo "❌ Integration tests failed: ${e.getMessage()}"
-                        currentBuild.result = 'FAILURE'
-                    }
+       stage('Integration Tests') {
+    steps {
+        echo 'Running integration tests...'
+        script {
+            def endpoints = ['/', '/hello', '/health']
+            for (ep in endpoints) {
+                try {
+                    bat "powershell -Command \"try { $resp = Invoke-RestMethod -Uri 'http://localhost:8080${ep}' -TimeoutSec 10; Write-Host '✅ Response from ${ep}: $resp' } catch { Write-Host '❌ Failed ${ep}: ' + $_.Exception.Message; exit 1 }\""
+                } catch (Exception e) {
+                    echo "❌ Integration test failed for endpoint ${ep}: ${e.getMessage()}"
+                    currentBuild.result = 'FAILURE'
                 }
             }
         }
-        
+    }
+}
+
         stage('Final Verification') {
             steps {
                 echo 'Performing final application verification...'
