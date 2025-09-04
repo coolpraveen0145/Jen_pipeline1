@@ -129,14 +129,25 @@ pipeline {
             }
         }
         
-       stage('Integration Tests') {
+      stage('Integration Tests') {
     steps {
         echo 'Running integration tests...'
         script {
             def endpoints = ['/', '/hello', '/health']
             for (ep in endpoints) {
                 try {
-                    bat "powershell -Command \"try { $resp = Invoke-RestMethod -Uri 'http://localhost:8080${ep}' -TimeoutSec 10; Write-Host '✅ Response from ${ep}: $resp' } catch { Write-Host '❌ Failed ${ep}: ' + $_.Exception.Message; exit 1 }\""
+                    bat """
+                        powershell -Command "& {
+                            try {
+                                \$response = Invoke-RestMethod -Uri 'http://localhost:8080${ep}' -TimeoutSec 10
+                                Write-Host '✅ Response from ${ep}: ' \$response
+                                exit 0
+                            } catch {
+                                Write-Host '❌ Failed ${ep}: ' \$_.Exception.Message
+                                exit 1
+                            }
+                        }"
+                    """
                 } catch (Exception e) {
                     echo "❌ Integration test failed for endpoint ${ep}: ${e.getMessage()}"
                     currentBuild.result = 'FAILURE'
